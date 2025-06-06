@@ -18,6 +18,7 @@ import argparse
 import os
 from os import listdir
 from os.path import isfile, join
+import mimetypes
 
 # Data formatting
 import json
@@ -38,9 +39,9 @@ class WebServer(object):
         self.app = Flask("Flask web server")
 
         # Uncomment to reduce access logging
-        self.app.logger.disabled = True
-        log = logging.getLogger('werkzeug')
-        log.disabled = True
+        #self.app.logger.disabled = True
+        #log = logging.getLogger('werkzeug')
+        #log.disabled = True
 
         # Setup flask routes
         self.app.add_url_rule('/','home', self.gallery)
@@ -65,15 +66,41 @@ class WebServer(object):
 <img style="display:block; width:100%" id='main-view'/>
 <div id='latest'>Latest</div>
 <ul id='file-list'>
-        """
-        output += """</ul>
+</ul>
 
+<ul id='dir-list'>
+</ul>
         <script>
+/* I'm not a JS dev: https://stackoverflow.com/a/5448595 */
+function findGetParameter(parameterName) {
+    var result = null,
+        tmp = [];
+    location.search
+        .substr(1)
+        .split("&")
+        .forEach(function (item) {
+          tmp = item.split("=");
+          if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+        });
+    return result;
+}
+
+
 img_id = "latest"
 img_data = ""
 
 function json_read(data)
 {
+    subdir=findGetParameter("subdir");
+
+    param="";
+    if(subdir == null)
+    {
+    subdir="";
+    }else{
+
+    param="?subdir="+subdir;
+}
     img_data = data
     if(img_data.length ==0)
     {
@@ -86,23 +113,53 @@ function json_read(data)
             set_image("latest");
         });
 
-    chat_list = document.getElementById("file-list");
-    chat_list.textContent = '';
+    temp = document.createElement("ul");
+    temp.id = "file-list";
     i=0;
     img_data['all'].slice(0,25).forEach((c) => {
         li = document.createElement("li");
         img = document.createElement("img");
-        img.src = "/img/"+c['path']
+        img.src = "/img/"+c['path']+param;
         img.addEventListener('click', function(e) {
             set_image("/img/"+c['path']);
         });
 
         li.appendChild(img);
 
-        chat_list.appendChild(li);
+        temp.appendChild(li);
 
         i+=1;
     });
+    chat_list = document.getElementById("file-list");
+    chat_list.replaceWith(temp);
+
+
+    dir_list = document.getElementById("dir-list");
+    dir_list.textContent = '';
+
+    li = document.createElement("li");
+    a = document.createElement("a");
+    a.textContent = "Home";
+    a.href = "/";
+
+    li.appendChild(a);
+    dir_list.appendChild(li);
+
+
+    i=0;
+    img_data['dirs'].forEach((c) => {
+        li = document.createElement("li");
+        a = document.createElement("a");
+        a.textContent = subdir+c;
+        a.href = "?subdir="+subdir+c;
+
+        li.appendChild(a);
+        dir_list.appendChild(li);
+
+        i+=1;
+    });
+
+
 
     if (img_id == "latest")
     {
@@ -112,10 +169,21 @@ function json_read(data)
 
 function set_image(img)
 {
+    subdir=findGetParameter("subdir");
+
+    param="";
+    if(subdir == null)
+    {
+    subdir="";
+    }else{
+
+    param="?subdir="+subdir;
+}
+
     img_id = img;
     if (img == "latest")
     {
-        path = "/img/"+img_data['latest']['path'];
+        path = "/img/"+img_data['latest']['path']+param;
     }else{
         path = img;
     }
@@ -126,7 +194,16 @@ function set_image(img)
 
 function data_fetch()
 {
-  fetch('files.json')
+  subdir=findGetParameter("subdir");
+
+  param=""
+  if(subdir != null)
+  {
+    param="?subdir="+subdir
+  }
+
+
+  fetch('files.json'+param)
     .then((response) => response.json())
     .then((data) => json_read(data));
 
@@ -164,10 +241,22 @@ setTimeout(data_fetch,1000)
         display: block;
         width: 100%;
     }
-    ul
+    #file-list
     {
     margin: 0px;
     padding: 0px;
+    }
+    #dir-list
+    {
+    margin: 0px;
+    padding: 0px;
+    }
+    #dir-list li
+    {
+    list-style:none;
+    margin: 0px;
+    padding: 0px;
+    border-bottom: 1px solid #333;
     }
     </style>
 """
@@ -175,17 +264,24 @@ setTimeout(data_fetch,1000)
 
     def files(self):
         """ JSON list of files in path with latest file access """
+        subdir=request.args.get('subdir')
+        if subdir is None:
+            subdir = ""
 
         # Clear old list
         gallery_files = {}
         gallery_files["all"] = []
 
         # Get files
-        onlyfiles = [f for f in listdir(args.path) if isfile(join(args.path, f))]
+        onlyfiles = [f for f in listdir(args.path+"/"+subdir) if isfile(join(args.path+"/"+subdir, f))]
+        gallery_files["dirs"]  = [ f.path.replace(args.path+"/"+subdir,"") for f in os.scandir(args.path+"/"+subdir) if f.is_dir() ]
 
         # Format data
         for filepath in onlyfiles:
-            gallery_files["all"].append({"path":filepath,"time" : os.path.getmtime(args.path+"/"+filepath)} )
+            mime = mimetypes.guess_type(args.path+"/"+subdir+"/"+filepath)
+
+            if mime[0].startswith("image"):
+                gallery_files["all"].append({"path":filepath,"time" : os.path.getmtime(args.path+"/"+subdir+"/"+filepath)} )
 
         # Sort by modification time
         gallery_files["all"] = sorted(gallery_files["all"], key=lambda d: d['time'])
@@ -198,7 +294,11 @@ setTimeout(data_fetch,1000)
 
     def img(self,name=None):
         """ Send image file from path to client """
-        return send_file(f"{args.path}{name}")
+        subdir=request.args.get('subdir')
+        if subdir is None:
+            subdir = ""
+
+        return send_file(f"{args.path+"/"+subdir}//{name}")
 
 # Create servev
 http = WebServer()
