@@ -288,7 +288,7 @@ setTimeout(data_fetch,1000)
 
         # Get latest file
         if len(gallery_files["all"]) > 0:
-            gallery_files["latest"] = gallery_files["all"][0]
+            gallery_files["latest"] = gallery_files["all"][-1]
 
         # Return JSON
         return json.dumps(gallery_files)
