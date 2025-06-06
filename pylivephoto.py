@@ -298,7 +298,7 @@ setTimeout(data_fetch,1000)
         if subdir is None:
             subdir = ""
 
-        return send_file(f"{args.path+"/"+subdir}//{name}")
+        return send_file(f"{args.path}//{subdir}//{name}")
 
 # Create servev
 http = WebServer()
