@@ -116,7 +116,7 @@ function json_read(data)
     temp = document.createElement("ul");
     temp.id = "file-list";
     i=0;
-    img_data['all']..reverse()slice(0,25).forEach((c) => {
+    img_data['all'].reverse().slice(0,25).forEach((c) => {
         li = document.createElement("li");
         img = document.createElement("img");
         img.src = "/img/"+c['path']+param;
