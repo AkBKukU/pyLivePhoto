@@ -287,7 +287,8 @@ setTimeout(data_fetch,1000)
         gallery_files["all"] = sorted(gallery_files["all"], key=lambda d: d['time'])
 
         # Get latest file
-        gallery_files["latest"] = gallery_files["all"][0]
+        if len(gallery_files["all"]) > 0:
+            gallery_files["latest"] = gallery_files["all"][0]
 
         # Return JSON
         return json.dumps(gallery_files)
