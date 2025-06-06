@@ -121,7 +121,7 @@ function json_read(data)
         img = document.createElement("img");
         img.src = "/img/"+c['path']+param;
         img.addEventListener('click', function(e) {
-            set_image("/img/"+c['path']);
+            set_image("/img/"+c['path']+param);
         });
 
         li.appendChild(img);
