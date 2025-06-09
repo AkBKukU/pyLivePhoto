@@ -280,6 +280,8 @@ setTimeout(data_fetch,1000)
         # Get files
         onlyfiles = [f for f in listdir(args.path+"/"+subdir) if isfile(join(args.path+"/"+subdir, f))]
         gallery_files["dirs"]  = [ f.path.replace(args.path+"/"+subdir,"") for f in os.scandir(args.path+"/"+subdir) if f.is_dir() ]
+        # Sort by name
+        gallery_files["dirs"].sort()
 
         # Format data
         for filepath in onlyfiles:
