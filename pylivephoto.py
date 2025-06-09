@@ -19,6 +19,10 @@ import os
 from os import listdir
 from os.path import isfile, join
 import mimetypes
+import time
+from pathlib import Path
+from pprint import pprint
+import time
 
 # Data formatting
 import json
@@ -165,6 +169,8 @@ function json_read(data)
     {
         set_image("latest");
     }
+
+  setTimeout(data_fetch,1000)
 }
 
 function set_image(img)
@@ -203,11 +209,10 @@ function data_fetch()
   }
 
 
-  fetch('files.json'+param)
+  fetch('files.json'+param, { signal: AbortSignal.timeout(15000) })
     .then((response) => response.json())
     .then((data) => json_read(data));
 
-  setTimeout(data_fetch,1000)
 }
 setTimeout(data_fetch,1000)
 
@@ -278,10 +283,15 @@ setTimeout(data_fetch,1000)
 
         # Format data
         for filepath in onlyfiles:
+            # Wait to make sure any files are finished being written
             mime = mimetypes.guess_type(args.path+"/"+subdir+"/"+filepath)
 
             if mime[0].startswith("image"):
-                gallery_files["all"].append({"path":filepath,"time" : os.path.getmtime(args.path+"/"+subdir+"/"+filepath)} )
+                mtime=Path(args.path+"/"+subdir+"/"+filepath).stat().st_mtime
+                if time.time() - mtime > 10:
+                    gallery_files["all"].append({"path":filepath,"time" : mtime} )
+                else:
+                    print(f"Not old enough: {filepath}")
 
         # Sort by modification time
         gallery_files["all"] = sorted(gallery_files["all"], key=lambda d: d['time'])
